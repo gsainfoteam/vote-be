@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: vote-db-container
+    restart: always # 에러 발생 시 자동 재시작
+    ports:
+      - "5432:5432" 
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}       
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data 
+
+networks:
+  default:
+    name: vote-network
