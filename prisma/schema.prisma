@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  uuid          String         @id
+  email         String?
+  name          String
+  picture       String?
+  studentId     String?
+  nickname      String?        @unique
+  department    String?
+  phoneNumber   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  surveys       Survey[]       @relation("Author")
+  comments      Comment[]      @relation("Author")
+  responses     Response[]     @relation("Voter")
+  reports       Report[]       @relation("Reporter")
+  notifications Notification[] @relation("Recipient")
+}
+
+model Survey {
+  id               Int       @id @default(autoincrement())
+  title            String
+  description      String
+  isAnonymous      Boolean   @default(true)
+  deadline         DateTime
+  estimatedTime    Int?
+  targetConstraint String?
+  isHidden         Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  authorId         String
+  author           User      @relation("Author", fields: [authorId], references: [uuid], onDelete: Cascade)
+
+  questions        Question[]
+  comments         Comment[]
+  responses        Response[]
+}
+
+model Question {
+  id        Int       @id @default(autoincrement())
+  type      QuestionType
+  content   String
+  surveyId  Int
+  survey    Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  
+  options   Option[]
+  answers   Answer[]
+}
+
+enum QuestionType {
+  SINGLE
+  MULTIPLE
+  SUBJECTIVE
+}
+
+model Option {
+  id         Int       @id @default(autoincrement())
+  content    String
+  imageUrl   String?
+  questionId Int
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  answers    Answer[]
+}
+
+model Response {
+  id        Int       @id @default(autoincrement())
+  surveyId  Int
+  userId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  survey    Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  user      User      @relation("Voter", fields: [userId], references: [uuid], onDelete: Cascade)
+  
+  answers   Answer[]
+
+  @@unique([surveyId, userId])
+}
+
+model Answer {
+  id          Int       @id @default(autoincrement())
+  responseId  Int
+  questionId  Int
+  optionId    Int?
+  text        String?
+
+  response    Response  @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option      Option?   @relation(fields: [optionId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  content   String    @db.VarChar(150)
+  isHidden  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  surveyId  Int
+  authorId  String
+  survey    Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  author    User      @relation("Author", fields: [authorId], references: [uuid], onDelete: Cascade)
+}
+
+model Report {
+  id         Int        @id @default(autoincrement())
+  targetType ReportType
+  targetId   Int
+  reporterId String
+  createdAt  DateTime   @default(now())
+
+  reporter   User       @relation("Reporter", fields: [reporterId], references: [uuid], onDelete: Cascade)
+
+  @@unique([reporterId, targetType, targetId])
+}
+
+enum ReportType {
+  SURVEY
+  COMMENT
+}
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    String
+  type      NotifType
+  content   String
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user      User      @relation("Recipient", fields: [userId], references: [uuid], onDelete: Cascade)
+}
+
+enum NotifType {
+  REPORT_HIDDEN
+  NEW_COMMENT
+}

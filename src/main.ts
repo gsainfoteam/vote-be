@@ -6,24 +6,31 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
- 
+  // Global validation pipe
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,               // DTO에 정의되지 않은 속성은 제거
-    forbidNonWhitelisted: true,    // 정의되지 않은 속성 요청 시 에러 발생
-    transform: true,               // 요청 데이터를 DTO 타입으로 자동 변환
+    whitelist: true,            // Strip unknown properties
+    forbidNonWhitelisted: true, // Throw error on unknown properties
+    transform: true,            // Auto-transform to DTO types
   }));
 
-  // Swagger API 문서 설정
+  // CORS
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || '*',
+  });
+
+  // Swagger API Docs at /docs
   const config = new DocumentBuilder()
     .setTitle('GIST Vote API')
-    .setDescription('GIST Vote API 문서')
+    .setDescription('GIST 투표/설문 서비스 백엔드 API 문서')
     .setVersion('1.0')
-    .addBearerAuth() // JWT 인증 버튼 추가
+    .addBearerAuth()
     .build();
-  
+
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document); // http://localhost:3000/api 로 접속 가능
+  SwaggerModule.setup('docs', app, document);
 
   await app.listen(3000);
+  console.log('🚀 Server running on http://localhost:3000');
+  console.log('📖 Swagger Docs: http://localhost:3000/docs');
 }
 bootstrap();

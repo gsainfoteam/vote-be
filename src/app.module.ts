@@ -1,31 +1,36 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { SurveysModule } from './surveys/surveys.module';
+import { CommentsModule } from './comments/comments.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
-    
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
-
-
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DATABASE_HOST'),
-        port: configService.get<number>('DATABASE_PORT'),
-        username: configService.get<string>('DATABASE_USER'),
-        password: configService.get<string>('DATABASE_PASSWORD'),
-        database: configService.get<string>('DATABASE_NAME'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'], // 모든 엔티티 파일 자동 스캔
-        synchronize: true, // DB 스키마 자동 업데이트 - 나중에 끄기
-        logging: true,     
-      }),
-    }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 60 seconds window
+      limit: 60,  // max 60 requests per window
+    }]),
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    SurveysModule,
+    CommentsModule,
+    ReportsModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule { }
