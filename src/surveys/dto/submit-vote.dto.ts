@@ -1,4 +1,4 @@
-import { ArrayMinSize, IsArray, IsInt, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsInt, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -17,6 +17,7 @@ export class AnswerDto {
     @ApiPropertyOptional({ description: '주관식 답변 텍스트' })
     @IsOptional()
     @IsString()
+    @MaxLength(1000)
     text?: string;
 }
 

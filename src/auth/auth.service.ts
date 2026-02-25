@@ -74,13 +74,20 @@ export class AuthService {
         where: {
           userId: payload.sub,
           tokenHash,
-          revokedAt: null,
-          expiresAt: { gt: new Date() },
         },
       });
 
       if (!session) {
-        throw new UnauthorizedException('이미 폐기되었거나 유효하지 않은 Refresh Token입니다.');
+        throw new UnauthorizedException('유효하지 않은 Refresh Token입니다.');
+      }
+
+      if (session.revokedAt) {
+        await this.revokeAllRefreshSessions(payload.sub);
+        throw new UnauthorizedException('Refresh Token 재사용이 감지되어 모든 세션이 만료되었습니다.');
+      }
+
+      if (session.expiresAt <= new Date()) {
+        throw new UnauthorizedException('만료된 Refresh Token입니다.');
       }
 
       await this.prisma.refreshTokenSession.update({
@@ -170,6 +177,18 @@ export class AuthService {
 
     await this.prisma.tokenBlacklist.deleteMany({
       where: { expiresAt: { lte: new Date() } },
+    });
+  }
+
+  private async revokeAllRefreshSessions(userId: string) {
+    await this.prisma.refreshTokenSession.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
     });
   }
 

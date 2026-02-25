@@ -13,6 +13,7 @@ import { UpdateSurveyDto } from './dto/update-survey.dto';
 const ESTIMATED_TIME_SINGLE = 20;
 const ESTIMATED_TIME_MULTIPLE = 25;
 const ESTIMATED_TIME_SUBJECTIVE = 60;
+const SUBJECTIVE_MAX_LENGTH = 1000;
 type FindAllTab = 'ongoing' | 'closing' | 'popular';
 
 @Injectable()
@@ -140,7 +141,7 @@ export class SurveysService {
         });
     }
 
-    async findAll(tab: FindAllTab = 'ongoing') {
+    async findAll(tab: FindAllTab = 'ongoing', page = 1, limit = 20) {
         const now = new Date();
         const todayStart = new Date(now);
         todayStart.setHours(0, 0, 0, 0);
@@ -148,6 +149,8 @@ export class SurveysService {
         closingStart.setDate(closingStart.getDate() + 1); // D-1 시작
         const closingEndExclusive = new Date(todayStart);
         closingEndExclusive.setDate(closingEndExclusive.getDate() + 4); // D-3 끝 (exclusive)
+        const safePage = Number.isFinite(page) ? Math.max(1, Math.trunc(page)) : 1;
+        const safeLimit = Number.isFinite(limit) ? Math.min(100, Math.max(1, Math.trunc(limit))) : 20;
 
         const baseWhere: any = { isHidden: false, deadline: { gt: now } };
         let orderBy: any = { createdAt: 'desc' };
@@ -161,6 +164,8 @@ export class SurveysService {
         return this.prisma.survey.findMany({
             where: baseWhere,
             orderBy,
+            skip: (safePage - 1) * safeLimit,
+            take: safeLimit,
             select: {
                 id: true,
                 title: true,
@@ -263,6 +268,9 @@ export class SurveysService {
                 if (!text) {
                     throw new BadRequestException(`SUBJECTIVE 문항은 text가 반드시 필요합니다. questionId=${answer.questionId}`);
                 }
+                if (text.length > SUBJECTIVE_MAX_LENGTH) {
+                    throw new BadRequestException(`주관식 답변은 ${SUBJECTIVE_MAX_LENGTH}자를 초과할 수 없습니다. questionId=${answer.questionId}`);
+                }
                 if (optionIds.length > 0) {
                     throw new BadRequestException(`SUBJECTIVE 문항에는 optionIds를 보낼 수 없습니다. questionId=${answer.questionId}`);
                 }
@@ -310,11 +318,14 @@ export class SurveysService {
         });
     }
 
-    async getResults(surveyId: number, userId: string) {
+    async getResults(surveyId: number, userId: string, page = 1, limit = 50) {
         const hasVoted = await this.prisma.response.findUnique({
             where: { surveyId_userId: { surveyId, userId } },
         });
         if (!hasVoted) throw new ForbiddenException('설문에 참여한 후 결과를 확인할 수 있습니다.');
+
+        const safePage = Number.isFinite(page) ? Math.max(1, Math.trunc(page)) : 1;
+        const safeLimit = Number.isFinite(limit) ? Math.min(200, Math.max(1, Math.trunc(limit))) : 50;
 
         const survey = await this.prisma.survey.findUnique({
             where: { id: surveyId },
@@ -327,6 +338,9 @@ export class SurveysService {
                         },
                         answers: {
                             where: { text: { not: null } },
+                            orderBy: { id: 'desc' },
+                            skip: (safePage - 1) * safeLimit,
+                            take: safeLimit,
                             include: {
                                 response: {
                                     include: { user: { select: { nickname: true, uuid: true } } },
@@ -341,10 +355,16 @@ export class SurveysService {
 
         if (!survey || survey.isHidden) throw new NotFoundException('설문을 찾을 수 없습니다.');
 
-        if (!survey.isAnonymous) return survey;
+        if (!survey.isAnonymous) {
+            return {
+                ...survey,
+                subjectiveAnswersPagination: { page: safePage, limit: safeLimit },
+            };
+        }
 
         return {
             ...survey,
+            subjectiveAnswersPagination: { page: safePage, limit: safeLimit },
             questions: survey.questions.map((question) => ({
                 ...question,
                 answers: question.answers.map((answer) => ({

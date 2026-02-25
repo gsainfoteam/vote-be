@@ -6,6 +6,8 @@ import { SubmitVoteDto } from './dto/submit-vote.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
+import { FindSurveysQueryDto } from './dto/find-surveys-query.dto';
+import { GetResultsQueryDto } from './dto/get-results-query.dto';
 
 @ApiTags('Surveys (설문)')
 @ApiBearerAuth()
@@ -33,8 +35,10 @@ export class SurveysController {
     @Get()
     @ApiOperation({ summary: '설문 목록 조회 (탭: ongoing | closing | popular)' })
     @ApiQuery({ name: 'tab', required: false, enum: ['ongoing', 'closing', 'popular'] })
-    findAll(@Query('tab') tab: 'ongoing' | 'closing' | 'popular') {
-        return this.surveysService.findAll(tab);
+    @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+    @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+    findAll(@Query() query: FindSurveysQueryDto) {
+        return this.surveysService.findAll(query.tab, query.page, query.limit);
     }
 
     @Get(':id')
@@ -55,7 +59,13 @@ export class SurveysController {
 
     @Get(':id/results')
     @ApiOperation({ summary: '설문 결과 조회 (투표자만 가능)' })
-    getResults(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: { uuid: string }) {
-        return this.surveysService.getResults(id, user.uuid);
+    @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+    @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
+    getResults(
+        @Param('id', ParseIntPipe) id: number,
+        @CurrentUser() user: { uuid: string },
+        @Query() query: GetResultsQueryDto,
+    ) {
+        return this.surveysService.getResults(id, user.uuid, query.page, query.limit);
     }
 }
