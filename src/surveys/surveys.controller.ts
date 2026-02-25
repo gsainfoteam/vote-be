@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SurveysService } from './surveys.service';
 import { CreateSurveyDto } from './dto/create-survey.dto';
 import { SubmitVoteDto } from './dto/submit-vote.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { UpdateSurveyDto } from './dto/update-survey.dto';
 
 @ApiTags('Surveys (설문)')
 @ApiBearerAuth()
@@ -17,6 +18,16 @@ export class SurveysController {
     @ApiOperation({ summary: '설문 생성' })
     create(@CurrentUser() user: { uuid: string }, @Body() dto: CreateSurveyDto) {
         return this.surveysService.create(user.uuid, dto);
+    }
+
+    @Patch(':id')
+    @ApiOperation({ summary: '설문 수정 (응답이 없을 때만 가능)' })
+    updateSurvey(
+        @Param('id', ParseIntPipe) id: number,
+        @CurrentUser() user: { uuid: string },
+        @Body() dto: UpdateSurveyDto,
+    ) {
+        return this.surveysService.updateSurvey(id, user.uuid, dto);
     }
 
     @Get()

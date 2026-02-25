@@ -24,6 +24,7 @@ model User {
   responses     Response[]     @relation("Voter")
   reports       Report[]       @relation("Reporter")
   notifications Notification[] @relation("Recipient")
+  refreshTokenSessions RefreshTokenSession[]
 }
 
 model Survey {
@@ -33,7 +34,6 @@ model Survey {
   isAnonymous      Boolean   @default(true)
   deadline         DateTime
   estimatedTime    Int?
-  targetConstraint String?
   isHidden         Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -44,6 +44,27 @@ model Survey {
   questions        Question[]
   comments         Comment[]
   responses        Response[]
+  targetConstraints SurveyTargetConstraint[]
+}
+
+model SurveyTargetConstraint {
+  id        Int        @id @default(autoincrement())
+  surveyId  Int
+  type      TargetType
+  value     String?
+  createdAt DateTime   @default(now())
+
+  survey    Survey     @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@index([surveyId])
+}
+
+enum TargetType {
+  ALL
+  DEPARTMENT
+  STUDENT_ID_PREFIX
+  NICKNAME
+  UUID
 }
 
 model Question {
@@ -139,6 +160,27 @@ model Notification {
   createdAt DateTime  @default(now())
 
   user      User      @relation("Recipient", fields: [userId], references: [uuid], onDelete: Cascade)
+}
+
+model RefreshTokenSession {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [uuid], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model TokenBlacklist {
+  id        Int      @id @default(autoincrement())
+  jti       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 enum NotifType {

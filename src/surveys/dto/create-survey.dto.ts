@@ -1,7 +1,18 @@
-import { IsString, IsBoolean, IsOptional, IsDateString, IsInt, IsEnum, IsArray, ValidateNested, MaxLength, ArrayMinSize } from 'class-validator';
+import {
+    IsString,
+    IsBoolean,
+    IsOptional,
+    IsDateString,
+    IsInt,
+    IsEnum,
+    IsArray,
+    ValidateNested,
+    MaxLength,
+    ArrayMinSize,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { QuestionType } from '@prisma/client';
+import { QuestionType, TargetType } from '@prisma/client';
 
 export class CreateOptionDto {
     @ApiProperty()
@@ -33,6 +44,18 @@ export class CreateQuestionDto {
     options?: CreateOptionDto[];
 }
 
+export class TargetConstraintDto {
+    @ApiProperty({ enum: TargetType, description: '대상 조건 타입' })
+    @IsEnum(TargetType)
+    type: TargetType;
+
+    @ApiPropertyOptional({ description: '조건 값 (예: 학과명, 학번 prefix, UUID 등)' })
+    @IsOptional()
+    @IsString()
+    @MaxLength(100)
+    value?: string;
+}
+
 export class CreateSurveyDto {
     @ApiProperty()
     @IsString()
@@ -57,10 +80,12 @@ export class CreateSurveyDto {
     @IsInt()
     estimatedTime?: number;
 
-    @ApiPropertyOptional({ description: '설문 대상 제한. 예: ALL, MALE, FEMALE, DEPT_CS' })
+    @ApiPropertyOptional({ type: [TargetConstraintDto], description: '설문 대상 조건 목록' })
     @IsOptional()
-    @IsString()
-    targetConstraint?: string;
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => TargetConstraintDto)
+    targetConstraints?: TargetConstraintDto[];
 
     @ApiProperty({ type: [CreateQuestionDto] })
     @IsArray()
